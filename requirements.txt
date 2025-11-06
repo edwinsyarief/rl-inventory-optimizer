@@ -1,0 +1,9 @@
+torch==2.0.1
+gymnasium==0.29.1
+numpy==1.26.4
+onnx==1.16.0
+onnx-tf==1.10.0
+tensorflow==2.15.0
+tensorflow-serving-api==2.15.0
+flask==3.0.3
+grpcio==1.64.1
