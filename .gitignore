@@ -1,5 +1,5 @@
 checkpoints/
-saved_models/
+saved_model/
 
 *.onnx
 *.pth
