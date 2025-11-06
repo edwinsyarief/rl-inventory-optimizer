@@ -86,20 +86,21 @@ class InventoryEnv(gym.Env):
         
         new_inventory = self.current_inventory + order - actual_demand
         
-        # Costs and rewards (minimize cost: negative costs as penalties)
-        holding = max(0, new_inventory) * self.holding_cost
         shortage = max(0, -new_inventory) * self.shortage_cost
+        new_inventory = max(0, new_inventory)
+        new_inventory = min(self.max_inventory, new_inventory)
+        holding = new_inventory * self.holding_cost
         ordering = order * self.ordering_cost
         revenue = min(self.current_inventory + order, actual_demand) * 3.0  # Assume sale price
         
         reward = revenue - holding - shortage - ordering
         
-        self.current_inventory = min(self.max_inventory, max(0, new_inventory))
+        self.current_inventory = new_inventory
         self.demand_forecast = np.random.randint(10, 50)  # New forecast
         
         terminated = False
         truncated = False
-        info = {}
+        info = {'costs': holding + shortage + ordering}
         
         state = np.array([self.current_inventory, self.demand_forecast], dtype=np.float32)
         return state, reward, terminated, truncated, info
@@ -147,13 +148,10 @@ def train_dqn(args):
                         q_values = policy_net(state.unsqueeze(0))
                         action = q_values.argmax().item()
                 
-                next_state, reward, terminated, truncated, _ = env.step(action)
+                next_state, reward, terminated, truncated, info = env.step(action)
                 done = terminated or truncated
                 total_reward += reward
-                # Calculate cost from env (holding + shortage + ordering)
-                total_cost += (env.holding_cost * max(0, env.current_inventory) + 
-                               env.shortage_cost * max(0, -env.current_inventory) + 
-                               env.ordering_cost * action)
+                total_cost += info['costs']
                 
                 next_state_tensor = torch.FloatTensor(next_state).to(args.device)
                 replay_buffer.push(state.cpu().numpy(), action, reward, next_state, done)
