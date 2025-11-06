@@ -8,7 +8,7 @@ import torch.cuda.amp as amp
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from gym import spaces
+from gymnasium import spaces
 
 
 class ReplayBuffer:
