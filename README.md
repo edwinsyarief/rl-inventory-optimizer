@@ -139,15 +139,17 @@ python benchmark_agent.py
 
 Benchmarks were run on a standard CPU (results may vary on GPU):
 
-- **Training (50 episodes, 50 steps each)**:
-  - Duration: ~9.82s
-  - Time per episode: ~0.20s
-  - Avg Cost (First 5 episodes): ~1265.30
-  - Avg Cost (Last 5 episodes): ~1023.40
-  - Cost Reduction: ~19.12%
-- **Inference (1000 runs)**:
-  - Duration: ~0.45s
-  - Avg Time per Inference: ~0.45ms
+```text
+Training Benchmark: 50 episodes on cpu
+Duration: 3.31s
+Time per episode: 0.07s
+Avg Cost First 5: 2286.50
+Avg Cost Last 5: 1534.10
+Cost Reduction: 32.91%
+Inference Benchmark on cpu: 1000 inferences
+Duration: 0.05s
+Avg time per inference: 0.05ms
+```
 
 These demonstrate efficient training (cost decreases over time) and fast inference suitable for real-time supply chain decisions.
 
