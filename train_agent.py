@@ -33,7 +33,7 @@ class ReplayBuffer(Dataset):
         return self.buffer[idx]
 
 class DQN(nn.Module):
-    def __init__(self, state_size, action_size, hidden_size=128):  # Increased hidden for better learning without overkill
+    def __init__(self, state_size, action_size, hidden_size=256):  # Increased hidden for better learning
         super(DQN, self).__init__()
         self.fc1 = nn.Linear(state_size, hidden_size)
         self.fc2 = nn.Linear(hidden_size, hidden_size)
@@ -130,9 +130,11 @@ def train_dqn(args):
         
         os.makedirs(args.checkpoint_dir, exist_ok=True)
         
+        norm_tensor = torch.tensor([env.max_inventory, env.max_inventory], dtype=torch.float32).to(args.device)
+        
         for episode in range(args.episodes):
             state, _ = env.reset()
-            state = torch.FloatTensor(state).to(args.device)
+            state = torch.FloatTensor(state).to(args.device) / norm_tensor
             total_reward = 0
             total_cost = 0
             done = False
@@ -153,8 +155,8 @@ def train_dqn(args):
                 total_reward += reward
                 total_cost += info['costs']
                 
-                next_state_tensor = torch.FloatTensor(next_state).to(args.device)
-                replay_buffer.push(state.cpu().numpy(), action, reward, next_state, done)
+                next_state_tensor = torch.FloatTensor(next_state).to(args.device) / norm_tensor
+                replay_buffer.push(state.cpu().numpy(), action, reward, next_state / norm_tensor.cpu().numpy(), done)
                 
                 state = next_state_tensor
                 
@@ -181,6 +183,10 @@ def train_dqn(args):
                     torch.nn.utils.clip_grad_norm_(policy_net.parameters(), max_norm=1.0)  # Clip to prevent explosions
                     scaler.step(optimizer)
                     scaler.update()
+                    
+                    # Soft update target net every step for better stability
+                    for target_param, policy_param in zip(target_net.parameters(), policy_net.parameters()):
+                        target_param.data.copy_(args.tau * policy_param.data + (1.0 - args.tau) * target_param.data)
             
             epsilon = max(args.epsilon_end, epsilon * args.epsilon_decay)
             episode_rewards.append(total_reward)
@@ -195,10 +201,6 @@ def train_dqn(args):
                 checkpoint_path = os.path.join(args.checkpoint_dir, f"dqn_episode_{episode + 1}.pth")
                 torch.save(policy_net.state_dict(), checkpoint_path)
                 logger.info(f"Saved checkpoint: {checkpoint_path}")
-            
-            # Soft update target net every episode for stability
-            for target_param, policy_param in zip(target_net.parameters(), policy_net.parameters()):
-                target_param.data.copy_(args.tau * policy_param.data + (1.0 - args.tau) * target_param.data)
         
         torch.save(policy_net.state_dict(), args.model_path)
         logger.info(f"Training complete. Final model saved to {args.model_path}. Final Avg Cost: {np.mean(episode_costs[-10:]):.2f}")
@@ -214,11 +216,11 @@ if __name__ == "__main__":
     parser.add_argument("--buffer_size", type=int, default=100000, help="Replay buffer size")
     parser.add_argument("--gamma", type=float, default=0.99, help="Discount factor")
     parser.add_argument("--tau", type=float, default=0.005, help="Soft update factor for target network")
-    parser.add_argument("--lr", type=float, default=0.0005, help="Learning rate")  # Lower for stability
+    parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")  # Increased for faster learning
     parser.add_argument("--epsilon_start", type=float, default=1.0, help="Starting epsilon")
     parser.add_argument("--epsilon_end", type=float, default=0.01, help="Ending epsilon")
-    parser.add_argument("--epsilon_decay", type=float, default=0.995, help="Epsilon decay rate")
-    parser.add_argument("--hidden_size", type=int, default=128, help="Hidden layer size")
+    parser.add_argument("--epsilon_decay", type=float, default=0.95, help="Epsilon decay rate")  # Faster decay
+    parser.add_argument("--hidden_size", type=int, default=256, help="Hidden layer size")
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Device to use")
     parser.add_argument("--log_interval", type=int, default=50, help="Log interval")  # Less frequent to save I/O
     parser.add_argument("--save_interval", type=int, default=200, help="Save checkpoint interval")
